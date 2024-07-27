@@ -1,26 +1,29 @@
 pipeline {
     agent any
-
     tools {
-        maven 'Maven3'  // Ensure this matches the name of the Maven installation configured in Jenkins
+        maven 'Maven3' 
     }
 
+
     environment {
-        DOCKER_HUB_CREDENTIALS = credentials('docker-hub-credentials')
-        DOCKER_HUB_REPO = 'your-dockerhub-username/my-java-app'
+        DOCKER_HUB_CREDENTIALS =credentials('docker-cred')
+        DOCKER_HUB_REPO = 'naveenanm/jkdocker'
     }
 
     stages {
         stage('Checkout') {
             steps {
-                checkout scm
+               checkout scmGit(branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/NaveenaNM/maven-docker.git']])
             }
         }
 
         stage('Build with Maven') {
             steps {
                 script {
-                    sh './mvnw clean package'
+                    // Use a Maven Docker image to build the Java project
+                    docker.image('maven:3.6.3-jdk-11').inside {
+                        sh 'mvn clean package'
+                    }
                 }
             }
         }
@@ -36,12 +39,33 @@ pipeline {
         stage('Push Docker Image') {
             steps {
                 script {
-                    docker.withRegistry('https://index.docker.io/v1/', 'DOCKER_HUB_CREDENTIALS') {
+                    withDockerRegistry(credentialsId: 'docker-cred', url: 'https://index.docker.io/v1/') {
                         docker.image("${DOCKER_HUB_REPO}:latest").push()
                     }
                 }
             }
         }
+        stage('Pull Docker Image') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'docker-cred', url: 'https://index.docker.io/v1/') {
+                        docker.image("${DOCKER_HUB_REPO}:latest").pull()
+                    }
+                }
+            }
+        }
+        stage('Run Docker Image') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'docker-cred', url: 'https://index.docker.io/v1/') {
+                    docker.image("${DOCKER_HUB_REPO}:latest").inside('-p 8000:8000') {
+                        sh 'java -jar target/my-java-app-1.0-SNAPSHOT.jar' // Adjust the command based on your app
+                    }
+                    }
+                }
+            }
+        }
+      
     }
 
     post {
@@ -50,4 +74,3 @@ pipeline {
         }
     }
 }
-
