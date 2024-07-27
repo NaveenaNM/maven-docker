@@ -1,12 +1,11 @@
 pipeline {
     agent any
     tools {
-        maven 'Maven3' 
+        maven 'Maven3'
     }
 
-
     environment {
-        DOCKER_HUB_CREDENTIALS =credentials('docker-cred')
+        DOCKER_HUB_CREDENTIALS = credentials('docker-cred')
         DOCKER_HUB_REPO = 'naveenanm/jkdocker'
     }
 
@@ -45,6 +44,7 @@ pipeline {
                 }
             }
         }
+
         stage('Pull Docker Image') {
             steps {
                 script {
@@ -54,18 +54,6 @@ pipeline {
                 }
             }
         }
-        stage('Run Docker Image') {
-            steps {
-                script {
-                    withDockerRegistry(credentialsId: 'docker-cred', url: 'https://index.docker.io/v1/') {
-                    docker.image("${DOCKER_HUB_REPO}:latest").inside('-p 8000:8000') {
-                        sh 'java -jar target/my-java-app-1.0-SNAPSHOT.jar' // Adjust the command based on your app
-                    }
-                    }
-                }
-            }
-        }
-      
     }
 
     post {
